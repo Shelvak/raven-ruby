@@ -28,27 +28,32 @@ module Raven
       # The module name (JRuby)
       attr_reader :module_name
 
+      # The line context local variables
+      attr_accessor :local_variables
+
       # Parses a single line of a given backtrace
       # @param [String] unparsed_line The raw line from +caller+ or some backtrace
       # @return [Line] The parsed backtrace line
       def self.parse(unparsed_line)
-        ruby_match = unparsed_line.match(RUBY_INPUT_FORMAT)
+        ruby_match = unparsed_line.to_s.match(RUBY_INPUT_FORMAT)
         if ruby_match
           _, file, number, method = ruby_match.to_a
           file.sub!(/\.class$/, RB_EXTENSION)
           module_name = nil
         else
-          java_match = unparsed_line.match(JAVA_INPUT_FORMAT)
+          java_match = unparsed_line.to_s.match(JAVA_INPUT_FORMAT)
           _, module_name, method, file, number = java_match.to_a
         end
-        new(file, number, method, module_name)
+
+        new(file, number, method, module_name, unparsed_line.try(:local_variables))
       end
 
-      def initialize(file, number, method, module_name)
+      def initialize(file, number, method, module_name, local_variables={})
         self.file = file
         self.module_name = module_name
         self.number = number.to_i
         self.method = method
+        self.local_variables = local_variables
       end
 
       def in_app

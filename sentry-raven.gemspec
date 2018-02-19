@@ -19,4 +19,5 @@ Gem::Specification.new do |gem|
   gem.executables = "raven"
 
   gem.add_dependency "faraday", ">= 0.7.6", "< 1.0"
+  gem.add_dependency "binding_of_caller", "0.8.0"
 end

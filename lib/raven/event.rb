@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 require 'socket'
 require 'securerandom'
+require 'binding_of_caller'
 
 module Raven
   class Event
@@ -58,6 +59,7 @@ module Raven
       configuration = options[:configuration] || Raven.configuration
       return unless configuration.exception_class_allowed?(exc)
 
+
       new(options) do |evt|
         evt.message = "#{exc.class}: #{exc.message}"
 
@@ -65,6 +67,8 @@ module Raven
 
         yield evt if block
       end
+      rescue => e
+        byebug
     end
 
     def self.from_message(message, options = {})
@@ -151,7 +155,7 @@ module Raven
               if e.backtrace && !backtraces.include?(e.backtrace.object_id)
                 backtraces << e.backtrace.object_id
                 StacktraceInterface.new do |stacktrace|
-                  stacktrace.frames = stacktrace_interface_from(e.backtrace)
+                  stacktrace.frames = stacktrace_interface_from(e.backtrace, e)
                 end
               end
           end
@@ -159,7 +163,13 @@ module Raven
       end
     end
 
-    def stacktrace_interface_from(backtrace)
+    def stacktrace_interface_from(backtrace, exc=nil)
+      if exc && !exc.class.to_s.match(/BetterErrors/i)
+        exc = (BetterErrors::RaisedException.new(exc) rescue exc)
+        backtrace = exc.backtrace
+      end
+
+      i = 0
       Backtrace.parse(backtrace).lines.reverse.each_with_object([]) do |line, memo|
         frame = StacktraceInterface::Frame.new
         frame.abs_path = line.file if line.file
@@ -168,13 +178,21 @@ module Raven
         frame.in_app = line.in_app
         frame.module = line.module_name if line.module_name
 
+        if frame.in_app
+          frame.vars = (line.local_variables rescue nil)
+        end
+
         if configuration[:context_lines] && frame.abs_path
           frame.pre_context, frame.context_line, frame.post_context = \
             configuration.linecache.get_file_context(frame.abs_path, frame.lineno, configuration[:context_lines])
         end
 
+        i+=i
         memo << frame if frame.filename
       end
+    rescue => e
+      ::Rails.logger.info(e)
+      ::Rails.logger.info(i)
     end
 
     # For cross-language compat

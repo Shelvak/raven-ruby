@@ -36,3 +36,5 @@ gem "puma" # rspec system tests
 
 gem "timecop"
 gem "test-unit", platform: :mri if RUBY_VERSION > '2.2'
+
+gem 'binding_of_caller'
