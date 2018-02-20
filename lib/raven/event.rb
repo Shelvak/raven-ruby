@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 require 'socket'
 require 'securerandom'
-require 'binding_of_caller'
 
 module Raven
   class Event

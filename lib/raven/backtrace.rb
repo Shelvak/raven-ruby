@@ -42,13 +42,13 @@ module Raven
       # @param [String] unparsed_line The raw line from +caller+ or some backtrace
       # @return [Line] The parsed backtrace line
       def self.parse(unparsed_line)
-        ruby_match = unparsed_line.to_s.match(RUBY_INPUT_FORMAT)
+        ruby_match = unparsed_line.match(RUBY_INPUT_FORMAT)
         if ruby_match
           _, file, number, method = ruby_match.to_a
           file.sub!(/\.class$/, RB_EXTENSION)
           module_name = nil
         else
-          java_match = unparsed_line.to_s.match(JAVA_INPUT_FORMAT)
+          java_match = unparsed_line.match(JAVA_INPUT_FORMAT)
           _, module_name, method, file, number = java_match.to_a
         end
 
