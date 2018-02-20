@@ -59,16 +59,14 @@ module Raven
       configuration = options[:configuration] || Raven.configuration
       return unless configuration.exception_class_allowed?(exc)
 
-
       new(options) do |evt|
-        evt.message = "#{exc.class}: #{exc.message}"
+        original_exception = exc.try(:exception) || exc
+        evt.message = "#{original_exception.class}: #{original_exception.message}"
 
         evt.add_exception_interface(exc)
 
         yield evt if block
       end
-      rescue => e
-        byebug
     end
 
     def self.from_message(message, options = {})
@@ -147,15 +145,18 @@ module Raven
         backtraces = Set.new
         exc_int.values = exceptions.map do |e|
           SingleExceptionInterface.new do |int|
-            int.type = e.class.to_s
-            int.value = e.to_s
-            int.module = e.class.to_s.split('::')[0...-1].join('::')
+            original_exception = e.try(:exception) || e
+            int.type = original_exception.class.to_s
+            int.value = original_exception.to_s
+            int.module = original_exception.class.to_s.split('::')[0...-1].join('::')
+
+            e.bind_errors_to_backtrace!
 
             int.stacktrace =
               if e.backtrace && !backtraces.include?(e.backtrace.object_id)
                 backtraces << e.backtrace.object_id
                 StacktraceInterface.new do |stacktrace|
-                  stacktrace.frames = stacktrace_interface_from(e.backtrace, e)
+                  stacktrace.frames = stacktrace_interface_from(e.backtrace)
                 end
               end
           end
@@ -163,13 +164,7 @@ module Raven
       end
     end
 
-    def stacktrace_interface_from(backtrace, exc=nil)
-      if exc && !exc.class.to_s.match(/BetterErrors/i)
-        exc = (BetterErrors::RaisedException.new(exc) rescue exc)
-        backtrace = exc.backtrace
-      end
-
-      i = 0
+    def stacktrace_interface_from(backtrace)
       Backtrace.parse(backtrace).lines.reverse.each_with_object([]) do |line, memo|
         frame = StacktraceInterface::Frame.new
         frame.abs_path = line.file if line.file
@@ -187,12 +182,10 @@ module Raven
             configuration.linecache.get_file_context(frame.abs_path, frame.lineno, configuration[:context_lines])
         end
 
-        i+=i
         memo << frame if frame.filename
       end
     rescue => e
       ::Rails.logger.info(e)
-      ::Rails.logger.info(i)
     end
 
     # For cross-language compat

@@ -31,6 +31,13 @@ module Raven
       # The line context local variables
       attr_accessor :local_variables
 
+      # Obtain the local_variables hash from the line context
+      # @param [String] unparsed_line The raw line from +caller+ or some backtrace
+      # @return [Hash] A hash with the line local variables (at raise time)
+      def self.local_variables_for(line)
+        line.instance_variable_get(:@__local_variables)
+      end
+
       # Parses a single line of a given backtrace
       # @param [String] unparsed_line The raw line from +caller+ or some backtrace
       # @return [Line] The parsed backtrace line
@@ -45,7 +52,7 @@ module Raven
           _, module_name, method, file, number = java_match.to_a
         end
 
-        new(file, number, method, module_name, unparsed_line.try(:local_variables))
+        new(file, number, method, module_name, local_variables_for(unparsed_line))
       end
 
       def initialize(file, number, method, module_name, local_variables={})

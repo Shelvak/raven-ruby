@@ -24,6 +24,7 @@ require 'raven/transports/http'
 require 'raven/utils/deep_merge'
 require 'raven/utils/real_ip'
 require 'raven/instance'
+require 'raven/exception_extension'
 
 require 'forwardable'
 require 'English'
