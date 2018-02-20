@@ -184,7 +184,7 @@ module Raven
         memo << frame if frame.filename
       end
     rescue => e
-      ::Rails.logger.info(e)
+      configuration.logger.info(e)
     end
 
     # For cross-language compat
