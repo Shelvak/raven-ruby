@@ -18,23 +18,27 @@ module Raven
 
     def bind_errors_to_backtrace!
       rails_root = ::Rails.root.to_s
-      self.backtrace.each_with_index do |line, i|
+      (self.backtrace || []).each_with_index do |line, i|
         if line.start_with?(rails_root)
           line.instance_variable_set(
             :@__local_variables,
-            redacted_local_variables_for(__binding_errors[i])
+            assign_redacted_local_variables_for(__binding_errors[i])
           )
         end
       end
     end
 
-    def redacted_local_variables_for(line)
+    def assign_redacted_local_variables_for(line)
       locals = (line.eval('local_variables') rescue [])
       locals.inject({}) do |memo, key|
         memo.merge!({
           key.to_sym => (line.eval(key.to_s) rescue nil)
         })
       end
+    end
+
+    def redacted_local_variables_for(line)
+      line.instance_variable_get(:@__local_variables) || {}
     end
   end
 end
