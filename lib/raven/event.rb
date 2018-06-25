@@ -59,7 +59,7 @@ module Raven
       return unless configuration.exception_class_allowed?(exc)
 
       new(options) do |evt|
-        original_exception = exc.try(:exception) || exc
+        original_exception = exc # exc.try(:exception) || exc
         evt.message = "#{original_exception.class}: #{original_exception.message}"
 
         evt.add_exception_interface(exc)
@@ -144,7 +144,7 @@ module Raven
         backtraces = Set.new
         exc_int.values = exceptions.map do |e|
           SingleExceptionInterface.new do |int|
-            original_exception = e.try(:exception) || e
+            original_exception = e # e.try(:exception) || e
             int.type = original_exception.class.to_s
             int.value = original_exception.to_s
             int.module = original_exception.class.to_s.split('::')[0...-1].join('::')
