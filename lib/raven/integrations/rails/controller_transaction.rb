@@ -7,8 +7,7 @@ module Raven
           block.call
           Raven.context.transaction.pop
         end
-      rescue => e
-        byebug
+      rescue
       end
     end
   end

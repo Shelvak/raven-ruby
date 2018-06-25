@@ -13,8 +13,7 @@ module Rake
         :tags => { 'rake_task' => top_level_tasks.join(' ') }
       )
       orig_display_error_messsage(ex)
-      rescue => e
-        byebug
+    rescue
     end
   end
 end

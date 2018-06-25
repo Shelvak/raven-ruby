@@ -30,9 +30,9 @@ module Raven
           int.from_rack(env)
         end
       end
-      rescue => e
-        byebug
+    rescue
     end
+
     class << self
       alias capture_message capture_type
       alias capture_exception capture_type
@@ -52,10 +52,8 @@ module Raven
       begin
         response = @app.call(env)
       rescue Error
-        byebug
         raise # Don't capture Raven errors
       rescue Exception => e
-        byebug
         Raven::Rack.capture_exception(e, env)
         raise
       end
