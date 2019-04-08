@@ -140,7 +140,7 @@ module Raven
 
     def add_exception_interface(exc)
       interface(:exception) do |exc_int|
-        exceptions = Raven::Utils::ExceptionCauseChain.exception_to_array(exc).reverse
+        exceptions = Raven::Utils::ExceptionCauseChain.exception_to_array(exc).reverse.first(2)
         backtraces = Set.new
         exc_int.values = exceptions.map do |e|
           SingleExceptionInterface.new do |int|

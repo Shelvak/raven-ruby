@@ -17,15 +17,20 @@ module Raven
     end
 
     def bind_errors_to_backtrace!
-      rails_root = ::Rails.root.to_s
-      (self.backtrace || []).each_with_index do |line, i|
-        if line.start_with?(rails_root)
-          line.instance_variable_set(
-            :@__local_variables,
-            assign_redacted_local_variables_for(__binding_errors[i])
+      return if instance_variable_get(:@__bind_errors_to_backtrace)
+
+      (backtrace || []).each_with_index do |line, i|
+        next unless ::Raven::Backtrace::Line.in_app?(line)
+
+        line.instance_variable_set(
+          :@__local_variables,
+          assign_redacted_local_variables_for(__binding_errors[i]).except(
+            :view, :block # view and block don't have much useful info
           )
-        end
+        )
       end
+
+      instance_variable_set(:@__bind_errors_to_backtrace, true)
     end
 
     def assign_redacted_local_variables_for(line)

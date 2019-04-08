@@ -7,6 +7,9 @@ module Raven
     # to set this to something like /(app|config|engines|lib)/
     attr_accessor :app_dirs_pattern
 
+    # Send only backtrace lines from app
+    attr_accessor :only_app_backtrace
+
     # Provide an object that responds to `call` to send events asynchronously.
     # E.g.: lambda { |event| Thread.new { Raven.send_event(event) } }
     attr_reader :async

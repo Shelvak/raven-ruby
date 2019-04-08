@@ -91,6 +91,10 @@ module Raven
         end
       end
 
+      def self.in_app?(line)
+        line =~ in_app_pattern ? true : false
+      end
+
       private
 
       attr_writer :file, :number, :method, :module_name
@@ -111,8 +115,15 @@ module Raven
         end
       end.compact
 
-      lines = filtered_lines.map do |unparsed_line|
-        Line.parse(unparsed_line)
+      lines = []
+      filtered_lines.each do |unparsed_line|
+        line = Line.parse(unparsed_line)
+
+        if Raven.configuration.only_app_backtrace
+          lines << line if line.in_app
+        else
+          lines << line
+        end
       end
 
       new(lines)
