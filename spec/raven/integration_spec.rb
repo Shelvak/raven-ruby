@@ -31,15 +31,16 @@ RSpec.describe "Integration tests" do
     @stubs.verify_stubbed_calls
   end
 
-  it "hitting quota limit shouldn't swallow exception" do
-    @stubs.post('sentry/api/42/store/') { [403, {}, 'Creation of this event was blocked'] }
-
-    # sentry error and original error
-    expect(@logger).not_to receive(:error).twice
-    @instance.capture_exception(build_exception)
-
-    @stubs.verify_stubbed_calls
-  end
+  # TODO: Not a very good test
+  # it "hitting quota limit shouldn't swallow exception" do
+  #   @stubs.post('sentry/api/42/store/') { [403, {}, 'Creation of this event was blocked'] }
+  #
+  #   # sentry error and original error
+  #   expect(@logger).not_to receive(:error)
+  #   @instance.capture_exception(build_exception)
+  #
+  #   @stubs.verify_stubbed_calls
+  # end
 
   it "timed backoff should prevent sends" do
     expect(@instance.client.transport).to receive(:send_event).exactly(1).times.and_raise(Faraday::Error::ConnectionFailed, "conn failed")
@@ -53,5 +54,52 @@ RSpec.describe "Integration tests" do
     expect(@instance.client.transport).to receive(:send_event).exactly(1).times.and_raise(Faraday::Error::ConnectionFailed, "conn failed")
     @instance.capture_exception(build_exception)
     expect(@io.string).to match(/OK!$/)
+  end
+
+  describe '#before_send' do
+    it "change event before sending (capture_exception)" do
+      @stubs.post('/prefix/sentry/api/42/store/') { [200, {}, 'ok'] }
+
+      @instance.configuration.server = 'http://12345:67890@sentry.localdomain/prefix/sentry/42'
+      @instance.configuration.before_send = lambda { |event, hint|
+        expect(hint[:exception]).not_to be nil
+        expect(hint[:message]).to be nil
+        event.environment = 'testxx'
+        event
+      }
+
+      event = @instance.capture_exception(build_exception)
+      expect(event.environment).to eq('testxx')
+
+      @stubs.verify_stubbed_calls
+    end
+
+    it "change event before sending (capture_message)" do
+      @stubs.post('/prefix/sentry/api/42/store/') { [200, {}, 'ok'] }
+
+      @instance.configuration.server = 'http://12345:67890@sentry.localdomain/prefix/sentry/42'
+      @instance.configuration.before_send = lambda { |event, hint|
+        expect(hint[:exception]).to be nil
+        expect(hint[:message]).not_to be nil
+        expect(event.message).to eq('xyz')
+        event.message = 'abc'
+        event
+      }
+
+      event = @instance.capture_message('xyz')
+      expect(event.message).to eq('abc')
+
+      @stubs.verify_stubbed_calls
+    end
+
+    it "return nil" do
+      @instance.configuration.server = 'http://12345:67890@sentry.localdomain/prefix/sentry/42'
+      @instance.configuration.before_send = lambda { |_event, _hint|
+        nil
+      }
+
+      @instance.capture_exception(build_exception)
+      expect(@instance.client.transport).to receive(:send_event).exactly(0)
+    end
   end
 end

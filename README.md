@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="https://cdn.rawgit.com/getsentry/raven-python/1e525422/docs/_static/logo.png">
+  <a href="https://sentry.io" target="_blank" align="center">
+    <img src="https://sentry-brand.storage.googleapis.com/sentry-logo-black.png" width="280">
+  </a>
+  <br>
 </p>
 
 # Raven-Ruby, the Ruby Client for Sentry
@@ -32,12 +35,12 @@ Raven will capture and send exceptions to the Sentry server whenever its DSN is 
 
 ```bash
 # Set your SENTRY_DSN environment variable.
-export SENTRY_DSN=http://public:secret@example.com/project-id
+export SENTRY_DSN=http://public@example.com/project-id
 ```
 ```ruby
 # Or you can configure the client in the code (not recommended - keep your DSN secret!)
 Raven.configure do |config|
-  config.dsn = 'http://public:secret@example.com/project-id'
+  config.dsn = 'http://public@example.com/project-id'
 end
 ```
 
@@ -127,7 +130,7 @@ For more information, see [Context](https://docs.sentry.io/clients/ruby/context/
 
 ## More Information
 
-* [Documentation](https://docs.getsentry.com/hosted/clients/ruby/)
+* [Documentation](https://docs.sentry.io/clients/ruby/)
 * [Bug Tracker](https://github.com/getsentry/raven-ruby/issues)
 * [Forum](https://forum.sentry.io/)
 * [IRC](irc://irc.freenode.net/sentry>)  (irc.freenode.net, #sentry)

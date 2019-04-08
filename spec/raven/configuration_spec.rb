@@ -58,6 +58,12 @@ RSpec.describe Raven::Configuration do
     expect { subject.should_capture = true }.to raise_error(ArgumentError)
   end
 
+  it 'should raise when setting before_send to anything other than callable or false' do
+    subject.before_send = -> {}
+    subject.before_send = false
+    expect { subject.before_send = true }.to raise_error(ArgumentError)
+  end
+
   context 'being initialized with a current environment' do
     before(:each) do
       subject.current_environment = 'test'
@@ -144,6 +150,24 @@ RSpec.describe Raven::Configuration do
     end
   end
 
+  context "with the new Sentry 9 DSN format" do
+    # Basically the same as before, without a secret
+    before(:each) do
+      subject.server = "https://66260460f09b5940498e24bb7ce093a0@sentry.io/42"
+    end
+
+    it 'captured_allowed is true' do
+      expect(subject.capture_allowed?).to eq(true)
+    end
+
+    it "sets the DSN in the way we expect" do
+      expect(subject.server).to eq("https://sentry.io")
+      expect(subject.project_id).to eq("42")
+      expect(subject.public_key).to eq("66260460f09b5940498e24bb7ce093a0")
+      expect(subject.secret_key).to be_nil
+    end
+  end
+
   context "with a sample rate" do
     before(:each) do
       subject.server = 'http://12345:67890@sentry.localdomain:3000/sentry/42'
@@ -159,6 +183,68 @@ RSpec.describe Raven::Configuration do
     it 'captured_allowed true when not sampled' do
       allow(Random::DEFAULT).to receive(:rand).and_return(0.74)
       expect(subject.capture_allowed?).to eq(true)
+    end
+  end
+
+  describe '#exception_class_allowed?' do
+    class MyTestException < RuntimeError; end
+
+    context 'with custom excluded_exceptions' do
+      before do
+        subject.excluded_exceptions = ['MyTestException']
+      end
+
+      context 'when the raised exception is a Raven::Error' do
+        let(:incoming_exception) { Raven::Error.new }
+        it 'returns false' do
+          expect(subject.exception_class_allowed?(incoming_exception)).to eq false
+        end
+      end
+
+      context 'when the raised exception is not in excluded_exceptions' do
+        let(:incoming_exception) { RuntimeError.new }
+        it 'returns true' do
+          expect(subject.exception_class_allowed?(incoming_exception)).to eq true
+        end
+      end
+
+      context 'when the raised exception has a cause that is in excluded_exceptions' do
+        let(:incoming_exception) { build_exception_with_cause(MyTestException.new) }
+        context 'when inspect_exception_causes_for_exclusion is false' do
+          it 'returns true' do
+            expect(subject.exception_class_allowed?(incoming_exception)).to eq true
+          end
+        end
+
+        # Only check causes when they're supported by the ruby version
+        context 'when inspect_exception_causes_for_exclusion is true' do
+          before do
+            subject.inspect_exception_causes_for_exclusion = true
+          end
+
+          if Exception.new.respond_to? :cause
+            context 'when the language version supports exception causes' do
+              it 'returns false' do
+                expect(subject.exception_class_allowed?(incoming_exception)).to eq false
+              end
+            end
+          else
+            context 'when the language version does not support exception causes' do
+              it 'returns true' do
+                expect(subject.exception_class_allowed?(incoming_exception)).to eq true
+              end
+            end
+          end
+        end
+      end
+
+      context 'when the raised exception is in excluded_exceptions' do
+        let(:incoming_exception) { MyTestException.new }
+
+        it 'returns false' do
+          expect(subject.exception_class_allowed?(incoming_exception)).to eq false
+        end
+      end
     end
   end
 end

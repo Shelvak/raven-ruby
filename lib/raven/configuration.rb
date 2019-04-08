@@ -1,7 +1,7 @@
 require 'uri'
 
 module Raven
-  class Configuration
+  class Configuration # rubocop:disable Metrics/ClassLength
     # Directories to be recognized as part of your app. e.g. if you
     # have an `engines` dir at the root of your project, you may want
     # to set this to something like /(app|config|engines|lib)/
@@ -30,6 +30,10 @@ module Raven
     # Array of exception classes that should never be sent. See IGNORE_DEFAULT.
     # You should probably append to this rather than overwrite it.
     attr_accessor :excluded_exceptions
+
+    # Boolean to check nested exceptions when deciding if to exclude. Defaults to false
+    attr_accessor :inspect_exception_causes_for_exclusion
+    alias inspect_exception_causes_for_exclusion? inspect_exception_causes_for_exclusion
 
     # DSN component - set automatically if DSN provided
     attr_accessor :host
@@ -156,6 +160,15 @@ module Raven
     # E.g. lambda { |event| Thread.new { MyJobProcessor.send_email(event) } }
     attr_reader :transport_failure_callback
 
+    # Optional Proc, called before sending an event to the server/
+    # E.g.: lambda { |event, hint| event }
+    # E.g.: lambda { |event, hint| nil }
+    # E.g.: lambda { |event, hint|
+    #   event[:message] = 'a'
+    #   event
+    # }
+    attr_reader :before_send
+
     # Errors object - an Array that contains error messages. See #
     attr_reader :errors
 
@@ -182,6 +195,9 @@ module Raven
       Raven::Processor::HTTPHeaders
     ].freeze
 
+    HEROKU_DYNO_METADATA_MESSAGE = "You are running on Heroku but haven't enabled Dyno Metadata. For Sentry's "\
+    "release detection to work correctly, please run `heroku labs:enable runtime-dyno-metadata`".freeze
+
     LOG_PREFIX = "** [Raven] ".freeze
     MODULE_SEPARATOR = "::".freeze
 
@@ -193,6 +209,7 @@ module Raven
       self.environments = []
       self.exclude_loggers = []
       self.excluded_exceptions = IGNORE_DEFAULT.dup
+      self.inspect_exception_causes_for_exclusion = false
       self.linecache = ::Raven::LineCache.new
       self.logger = ::Raven::Logger.new(STDOUT)
       self.open_timeout = 1
@@ -214,6 +231,7 @@ module Raven
       self.tags = {}
       self.timeout = 2
       self.transport_failure_callback = false
+      self.before_send = false
     end
 
     def server=(value)
@@ -264,6 +282,13 @@ module Raven
         raise ArgumentError, "should_capture must be callable (or false to disable)"
       end
       @should_capture = value
+    end
+
+    def before_send=(value)
+      unless value == false || value.respond_to?(:call)
+        raise ArgumentError, "before_send must be callable (or false to disable)"
+      end
+      @before_send = value
     end
 
     # Allows config options to be read like a hash
@@ -329,12 +354,22 @@ module Raven
       logger.error "Error detecting release: #{ex.message}"
     end
 
-    def excluded_exception?(exc)
-      excluded_exceptions.any? { |x| get_exception_class(x) === exc }
+    def excluded_exception?(incoming_exception)
+      excluded_exceptions.any? do |excluded_exception|
+        matches_exception?(get_exception_class(excluded_exception), incoming_exception)
+      end
     end
 
     def get_exception_class(x)
       x.is_a?(Module) ? x : qualified_const_get(x)
+    end
+
+    def matches_exception?(excluded_exception_class, incoming_exception)
+      if inspect_exception_causes_for_exclusion?
+        Raven::Utils::ExceptionCauseChain.exception_to_array(incoming_exception).any? { |cause| excluded_exception_class === cause }
+      else
+        excluded_exception_class === incoming_exception
+      end
     end
 
     # In Ruby <2.0 const_get can't lookup "SomeModule::SomeClass" in one go
@@ -352,18 +387,13 @@ module Raven
     def detect_release_from_heroku
       return unless running_on_heroku?
       return if ENV['CI']
-      logger.warn(heroku_dyno_metadata_message) && return unless ENV['HEROKU_SLUG_COMMIT']
+      logger.warn(HEROKU_DYNO_METADATA_MESSAGE) && return unless ENV['HEROKU_SLUG_COMMIT']
 
       ENV['HEROKU_SLUG_COMMIT']
     end
 
     def running_on_heroku?
       File.directory?("/etc/heroku")
-    end
-
-    def heroku_dyno_metadata_message
-      "You are running on Heroku but haven't enabled Dyno Metadata. For Sentry's "\
-      "release detection to work correctly, please run `heroku labs:enable runtime-dyno-metadata`"
     end
 
     def detect_release_from_capistrano
