@@ -117,6 +117,11 @@ module Raven
 
       lines = []
       filtered_lines.each do |unparsed_line|
+        if unparsed_line.is_a?(Line)
+          lines << unparsed_line
+          next
+        end
+
         line = Line.parse(unparsed_line)
 
         if Raven.configuration.only_app_backtrace

@@ -17,23 +17,23 @@ module Raven
     end
 
     def bind_errors_to_backtrace!
-      return if instance_variable_get(:@__bind_errors_to_backtrace)
+      @bind_errors_to_backtrace ||= __binding_errors.map do |line|
+        file = line.instance_variable_get(:@iseq).path
+        next unless ::Raven::Backtrace::Line.in_app?(file)
 
-      (backtrace || []).each_with_index do |line, i|
-        next unless ::Raven::Backtrace::Line.in_app?(line)
-
-        line.instance_variable_set(
-          :@__local_variables,
-          assign_redacted_local_variables_for(__binding_errors[i]).except(
+        ::Raven::Backtrace::Line.new(
+          line.eval('__FILE__'),
+          line.eval('__LINE__'),
+          line.frame_description,
+          nil,
+          assign_verbose_local_variables_for(line).except(
             :view, :block # view and block don't have much useful info
           )
         )
-      end
-
-      instance_variable_set(:@__bind_errors_to_backtrace, true)
+     end.compact
     end
 
-    def assign_redacted_local_variables_for(line)
+    def assign_verbose_local_variables_for(line)
       locals = (line.eval('local_variables') rescue [])
       locals.inject({}) do |memo, key|
         value = (line.eval(key.to_s) rescue nil)
@@ -43,8 +43,10 @@ module Raven
       end
     end
 
-    def redacted_local_variables_for(line)
-      line.instance_variable_get(:@__local_variables) || {}
+    def verbose_local_variables
+      (@bind_errors_to_backtrace || []).map do |line|
+        { line.to_s => line.local_variables }
+      end
     end
 
     def value_to_log(value)

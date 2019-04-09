@@ -120,7 +120,7 @@ module Raven
 
     def to_hash
       data = [:checksum, :environment, :event_id, :extra, :fingerprint, :level,
-              :logger, :message, :modules, :platform, :release, :sdk, :server_name,
+              :logger, :message, :modules, :platform, :release, :server_name,
               :tags, :time_spent, :timestamp, :transaction, :user].each_with_object({}) do |att, memo|
         memo[att] = public_send(att) if public_send(att)
       end
@@ -145,17 +145,17 @@ module Raven
         exc_int.values = exceptions.map do |e|
           SingleExceptionInterface.new do |int|
             original_exception = e # e.try(:exception) || e
-            int.type = original_exception.class.to_s
-            int.value = original_exception.to_s
-            int.module = original_exception.class.to_s.split('::')[0...-1].join('::')
+            int.type           = original_exception.class.to_s
+            int.value          = original_exception.to_s
+            int.module         = original_exception.class.to_s.split('::')[0...-1].join('::')
 
-            e.bind_errors_to_backtrace!
+            binded_backtrace = e.bind_errors_to_backtrace!
 
             int.stacktrace =
-              if e.backtrace && !backtraces.include?(e.backtrace.object_id)
-                backtraces << e.backtrace.object_id
+              if binded_backtrace && !backtraces.include?(binded_backtrace.object_id)
+                backtraces << binded_backtrace.object_id
                 StacktraceInterface.new do |stacktrace|
-                  stacktrace.frames = stacktrace_interface_from(e.backtrace)
+                  stacktrace.frames = stacktrace_interface_from(binded_backtrace)
                 end
               end
           end
@@ -166,11 +166,12 @@ module Raven
     def stacktrace_interface_from(backtrace)
       Backtrace.parse(backtrace).lines.reverse.each_with_object([]) do |line, memo|
         frame = StacktraceInterface::Frame.new
+
         frame.abs_path = line.file if line.file
         frame.function = line.method if line.method
-        frame.lineno = line.number
-        frame.in_app = line.in_app
-        frame.module = line.module_name if line.module_name
+        frame.lineno   = line.number
+        frame.in_app   = line.in_app
+        frame.module   = line.module_name if line.module_name
 
         if frame.in_app
           frame.vars = (line.local_variables rescue nil)
