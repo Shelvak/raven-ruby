@@ -124,7 +124,7 @@ module Raven
 
         line = Line.parse(unparsed_line)
 
-        if Raven.configuration.only_app_backtrace
+        if false # Raven.configuration.only_app_backtrace
           lines << line if line.in_app
         else
           lines << line

@@ -4,6 +4,10 @@ module Raven
   module ExceptionExtension
     prepend_features Exception
 
+    IGNORED_LOCAL_VARS = %w[
+      format f output_buffer _old_virtual_path _old_output_buffer
+    ].freeze
+
     def set_backtrace(*)
       if caller_locations.none? { |loc| loc.path == __FILE__ }
         @__binding_errors = ::Kernel.binding.callers.drop(1)
@@ -19,7 +23,7 @@ module Raven
     def bind_errors_to_backtrace!
       @bind_errors_to_backtrace ||= __binding_errors.map do |line|
         file = line.instance_variable_get(:@iseq).path
-        next unless ::Raven::Backtrace::Line.in_app?(file)
+        # next unless ::Raven::Backtrace::Line.in_app?(file)
 
         ::Raven::Backtrace::Line.new(
           line.eval('__FILE__'),
