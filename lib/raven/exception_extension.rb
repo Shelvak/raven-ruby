@@ -23,7 +23,7 @@ module Raven
     def bind_errors_to_backtrace!
       @bind_errors_to_backtrace ||= __binding_errors.map do |line|
         file = line.instance_variable_get(:@iseq).path
-        # next unless ::Raven::Backtrace::Line.in_app?(file)
+        next unless ::Raven::Backtrace::Line.in_app?(file)
 
         ::Raven::Backtrace::Line.new(
           line.eval('__FILE__'),
@@ -31,7 +31,8 @@ module Raven
           line.frame_description,
           nil,
           assign_verbose_local_variables_for(line).except(
-            :view, :block # view and block don't have much useful info
+            :request, :req, :response, :env, :instrumenter, :headers, :body,
+            :view, :block, :output_buffer
           )
         )
      end.compact
