@@ -32,7 +32,7 @@ module Raven
           nil,
           assign_verbose_local_variables_for(line).except(
             :request, :req, :response, :env, :instrumenter, :headers, :body,
-            :view, :block, :output_buffer, :f
+            :view, :block, :output_buffer, :f, :prawn
           )
         )
      end.compact
