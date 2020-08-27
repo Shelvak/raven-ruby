@@ -55,7 +55,7 @@ module Raven
     end
 
     def value_to_log(value)
-      if [Hash].include?(value.class )
+      if [Hash].include?(value.class)
         value.each_with_object({}) do |(k, v), memo|
           memo[k] = value_to_log(v)
         end
@@ -67,6 +67,8 @@ module Raven
             v
           end
         end
+      elsif value.respond_to?(:as_json)
+        value.as_json
       else
         value.inspect
       end

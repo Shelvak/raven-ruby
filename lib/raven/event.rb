@@ -135,7 +135,9 @@ module Raven
 
     def to_json_compatible
       cleaned_hash = async_json_processors.reduce(to_hash) { |a, e| e.process(a) }
-      JSON.parse(JSON.generate(cleaned_hash))
+      json   = cleaned_hash.to_json rescue nil
+      json ||= JSON.generate(cleaned_hash)
+      JSON.parse(json)
     end
 
     def add_exception_interface(exc)
