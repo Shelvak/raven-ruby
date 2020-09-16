@@ -67,8 +67,8 @@ module Raven
             v
           end
         end
-      elsif value.respond_to?(:as_json)
-        value.as_json
+      elsif value.is_a?(ActiveRecord::Base)
+        value.to_json
       else
         value.inspect
       end
